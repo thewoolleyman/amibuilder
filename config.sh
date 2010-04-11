@@ -2,6 +2,8 @@
 
 # http://alestic.com/2009/11/ec2-credentials
 
+# NOTES: cert file MUST be permissions 644
+
 # thewoolleyman@gmail.com
 #private-key=~/.ssh/pk-ec2-thewoolleyman.pem
 #cert=~/.ssh/cert-ec2-thewoolleyman.pem
@@ -16,3 +18,4 @@ keypairname=rails-ci
 
 instancetype=m1.large
 ami=ami-ab15f6c2   # ubuntu 9.10
+newamiprefix=test-

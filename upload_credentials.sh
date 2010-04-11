@@ -11,3 +11,5 @@ rsync \
   --rsync-path="sudo rsync" \
   $cert \
   ubuntu@$host:/mnt/
+
+ssh -i $keypair ubuntu@$host "sudo chown ubuntu /mnt/{cert,pk}*"
