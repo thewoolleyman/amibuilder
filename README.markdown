@@ -3,12 +3,16 @@ Private setup for RailsCI
 Usage
 =====
 . ./config.sh
+. ./run_instance.sh
+. ./get_host.sh
+. ./upload_credentials.sh
 
 Links
 =====
 * Building an Image: http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
-* Info on Certs/Keys: http://solutions.amazonwebservices.com/connect/message.jspa?messageID=115688
 * Download Certs/Keys: https://aws-portal.amazon.com/gp/aws/developer/account/index.html
+* Understanding Credentials: http://alestic.com/2009/11/ec2-credentials
+* https://help.ubuntu.com/community/EC2StartersGuide
 
 Viewing Key Info
 ================

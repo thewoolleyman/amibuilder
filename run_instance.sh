@@ -4,6 +4,7 @@
 instanceid=$(ec2-run-instances   \
   --private-key "$privatekey" \
   --cert "$cert" \
+  --key "$keypairname" \
   --availability-zone us-east-1a \
   --instance-type "$instancetype" \
   "$ami" |
