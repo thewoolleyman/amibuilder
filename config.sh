@@ -18,6 +18,6 @@ keypair=${EC2_KEYPAIR:?Please set EC2_KEYPAIR to the path of your keypair privat
 keypairname=${EC2_KEYPAIR_NAME:?Please set EC2_KEYPAIR_NAME to the name of your keypair (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)}
 
 # AMI Builder Settings
-instancetype=${AMIBUILDER_INSTANCE_TYPE:?Please set AMIBUILDER_INSTANCE_TYPE to the type of instance you want, e.g. m1.small (See http://aws.amazon.com/ec2/instance-types/)}
+instancetype=${AMIBUILDER_INSTANCE_TYPE:?Please set AMIBUILDER_INSTANCE_TYPE to the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)}
 ami=${AMIBUILDER_BASE_AMI:?Please set AMIBUILDER_BASE_AMI to the AMI ID you wish to clone.  Make SURE this matches your AMIBUILDER_INSTANCE_TYPE - 32 or 64 bit.  Standard Ubuntu 9.10 is 'ami-1515f67c' for 32 bit and 'ami-ab15f6c2' for 64 bit}
 newamiprefix=${AMIBUILDER_NEW_AMI_PREFIX:?Please set AMIBUILDER_NEW_AMI_PREFIX to a string with no spaces.  This string will be prepended to the name of your new AMI}

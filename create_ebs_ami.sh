@@ -61,6 +61,12 @@ sudo -E chroot $imagedir /usr/bin/env LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_A
 
 sudo -E chroot $imagedir apt-get dist-upgrade -y &&
 sudo -E chroot $imagedir apt-get install -y runurl ec2-ami-tools
+
+# additional packages for building and common dependencies
+sudo -E chroot $imagedir apt-get install -y build-essential zlib1g-dev libssl-dev libreadline5-dev
+# update one more time
+sudo chroot $imagedir apt-get update
+
 sudo chroot $imagedir umount /proc
 sudo chroot $imagedir umount /dev/pts
 sudo rm -f $imagedir/usr/sbin/policy-rc.d
