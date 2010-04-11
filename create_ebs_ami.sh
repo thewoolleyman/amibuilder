@@ -57,9 +57,7 @@ chmod 755 $imagedir/usr/sbin/policy-rc.d
 export DEBIAN_FRONTEND=noninteractive
 sudo chroot $imagedir apt-get update
 
-sudo -E chroot $imagedir apt-get install -y language-pack-en-base
-sudo -E chroot $imagedir LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 locale-gen en_US.UTF-8
-sudo -E chroot $imagedir dpkg-reconfigure locales
+sudo -E chroot $imagedir /usr/bin/env LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 apt-get install -y language-pack-en-base
 
 sudo -E chroot $imagedir apt-get dist-upgrade -y &&
 sudo -E chroot $imagedir apt-get install -y runurl ec2-ami-tools
@@ -70,7 +68,7 @@ sudo rm -f $imagedir/usr/sbin/policy-rc.d
 
 size=15 # root disk in GB
 now=$(date +%Y%m%d-%H%M)
-prefix='$newamiprefix'ubuntu-$release-$codename-$tag-$arch-$now
+prefix='$newamiprefix'-ubuntu-$release-$codename-$tag-$arch-$now
 description="Ubuntu $release $codename $tag $arch $now"
 export EC2_CERT=$(echo /mnt/cert-*.pem)
 export EC2_PRIVATE_KEY=$(echo /mnt/pk-*.pem)
@@ -90,10 +88,11 @@ snapshotid=$(ec2-create-snapshot "$volumeid" | cut -f2)
 ec2-delete-volume "$volumeid"
 while ec2-describe-snapshots "$snapshotid" | grep -q pending
   do echo -n .; sleep 1; done
-ec2-register                   \
-  --architecture $arch         \
-  --name "$prefix"             \
+newami=$(ec2-register \
+  --architecture $arch \
+  --name "$prefix" \
   --description "$description" \
-  $ebsopts                     \
-  --snapshot "$snapshotid"
+  $ebsopts \
+  --snapshot "$snapshotid")
+echo "NEW AMI: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
 '

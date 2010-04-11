@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# 64-bit
-instanceid=$(ec2-run-instances   \
+instanceid=$(ec2-run-instances \
   --private-key "$privatekey" \
   --cert "$cert" \
   --key "$keypairname" \
