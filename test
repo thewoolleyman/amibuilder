@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+if [[ "aaa" = "aaa" || "bbb" = "bbbx" ]] ; then
+  echo 'yes'
+else
+  echo 'no'
+fi
+
+# while ssh_up=$(ssh thewoolleyweb.com "echo ssh up") && test "$ssh_up" != "ssh up"; do
+#     echo $ssh_up
+#     echo -n .
+#     sleep 1
+# done

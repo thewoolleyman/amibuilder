@@ -7,25 +7,31 @@ Requirements
 ============
 The following environment variables must be set.  You can paste this into ~/.amibuilderrc and it will be read automatically (replace with your proper values)
 
-    # EC2 Tools
-    export EC2_HOME=~/bin/ec2-api-tools # the path of your EC2 API Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=351&categoryID=88)
-    export EC2_AMITOOL_HOME=~/bin/ec2-ami0tools # the path of your EC2 AMI Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=368&categoryID=88)
+    ### EC2 Tools ###
+    # EC2_HOME: the path of your EC2 API Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=351&categoryID=88)
+    export EC2_HOME=~/bin/ec2-api-tools
+    # EC2_AMITOOL_HOME: the path of your EC2 AMI Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=368&categoryID=88)
+    export EC2_AMITOOL_HOME=~/bin/ec2-ami0tools
 
-    # EC2 Credentials
-    export EC2_PRIVATE_KEY=~/.ec2/pk-yourid.pem # the path of your private key (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
-    export EC2_CERT=~/.ec2/cert-yourid.pem # the path of your cert (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
-    export EC2_KEYPAIR=~/.ec2/keypair-yourid.pem # the path of your keypair private key (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
-    export EC2_KEYPAIR_NAME=yourid # the name of your keypair (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
+    ### EC2 Credentials ###
+    # EC2_PRIVATE_KEY: the path of your private key (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
+    export EC2_PRIVATE_KEY=~/.ec2/pk-yourid.pem
+    # EC2_CERT: the path of your cert (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
+    export EC2_CERT=~/.ec2/cert-yourid.pem
+    # EC2_KEYPAIR: the path of your keypair private key (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
+    export EC2_KEYPAIR=~/.ec2/keypair-yourid.pem
+    # EC2_KEYPAIR_NAME: the name of your keypair (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
+    export EC2_KEYPAIR_NAME=yourid
 
-    # AMI Builder Settings
-    export AMIBUILDER_INSTANCE_TYPE=m1.small # the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)
-    export AMIBUILDER_BASE_AMI=ami-1515f67c # the AMI ID you wish to clone.  Make SURE this matches your AMIBUILDER_INSTANCE_TYPE - 32 or 64 bit.  Standard Ubuntu 9.10 is 'ami-1515f67c' for 32 bit and 'ami-ab15f6c2' for 64 bit
-    export AMIBUILDER_NEW_AMI_PREFIX=cloned # a string with no spaces.  This string will be prepended to the name of your new AMI
-
+    ### AMI Builder Settings ###
+    # AMIBUILDER_INSTANCE_TYPE: the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)
+    export AMIBUILDER_INSTANCE_TYPE=m1.small
+    # AMIBUILDER_NEW_AMI_PREFIX: a string with no spaces.  This string will be prepended to the name of your new AMI
+    export AMIBUILDER_NEW_AMI_PREFIX=cloned
 
 Usage
 =====
-    . ./run.sh
+    ./amibuilder
 
 Links
 =====
