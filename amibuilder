@@ -50,7 +50,7 @@ get_host() {
      "$instanceid" | \
     egrep ^INSTANCE | cut -f4) && test -z $host; do echo -n .; sleep 1; done
   echo; echo "Waiting for ssh connectivity to $host..."
-  while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up") && test "$ssh_up" != "ssh up"; do
+  while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up"); test "$ssh_up" != "ssh up"; do
     echo $ssh_up
   done
   echo
@@ -86,10 +86,9 @@ upgrade_tools() {
   sudo -E apt-get install -y ec2-api-tools'
 }
 
-create_ebs_ami() {
-  ssh -i $keypair \
-    ubuntu@$host \
-  'codename=karmic
+__remote_variable_setup() {
+  remote_variable_setup='
+  codename=karmic
   release=9.10
   tag=server
   if [ $(uname -m) = "x86_64" ]; then
@@ -103,11 +102,16 @@ create_ebs_ami() {
     ebsopts="--kernel=aki-5f15f636 --ramdisk=ari-0915f660"
     ebsopts="$ebsopts --block-device-mapping /dev/sda2=ephemeral0"
   fi
-
-
   imagesource=http://uec-images.ubuntu.com/releases/$codename/release/unpacked/ubuntu-$release-$tag-uec-$arch2.img.tar.gz
   image=/mnt/$codename-$tag-uec-$arch2.img
   imagedir=/mnt/$codename-uec-$arch2
+  '
+}
+
+__build_image() {
+  ssh -i $keypair \
+    ubuntu@$host \
+  "$remote_variable_setup"'
   wget --progress=dot:mega -O- $imagesource |
     sudo tar xzf - -C /mnt
   sudo mkdir -p $imagedir
@@ -153,7 +157,13 @@ EOF
   sudo -E chroot $imagedir apt-get install -y build-essential zlib1g-dev libssl-dev libreadline5-dev
   # update one more time
   sudo chroot $imagedir apt-get update
+  '
+}
 
+__copy_image_to_ami() {
+  ssh -i $keypair \
+    ubuntu@$host \
+  "$remote_variable_setup"'
   sudo chroot $imagedir umount /proc
   sudo chroot $imagedir umount /dev/pts
   sudo rm -f $imagedir/usr/sbin/policy-rc.d
@@ -189,6 +199,12 @@ EOF
     --snapshot "$snapshotid")
   echo "NEW AMI: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
   '
+}
+
+create_ebs_ami() {
+  __remote_variable_setup
+  __build_image
+  __copy_image_to_ami
 }
 
 terminate_instance() {
