@@ -34,6 +34,7 @@ run_instance() {
     ami_to_run_build='ami-ab15f6c2' # 64 bit
   fi
   
+  echo "Running instance to perform AMI build: ami=$ami_to_run_build, instancetype=$instancetype ..."
   instanceid=$(ec2-run-instances \
     --private-key "$privatekey" \
     --cert "$cert" \
@@ -42,18 +43,18 @@ run_instance() {
     --instance-type "$instancetype" \
     "$ami_to_run_build" |
     egrep ^INSTANCE | cut -f2)
-  echo "instanceid=$instanceid"
+  echo "Started instance: instanceid=$instanceid"
   instanceid=$instanceid
 }
 
 get_host() {
-  echo "Finding hostname for $instanceid..."
+  echo "Finding hostname for $instanceid ..."
   while host=$(ec2-describe-instances \
     --private-key "$privatekey" \
     --cert "$cert" \
      "$instanceid" | \
     egrep ^INSTANCE | cut -f4) && test -z $host; do echo -n .; sleep 1; done
-  echo; echo "Waiting for ssh connectivity to $host..."
+  echo; echo "Waiting for ssh connectivity to $host ..."
   while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up"); test "$ssh_up" != "ssh up"; do
     echo $ssh_up
   done
@@ -61,6 +62,7 @@ get_host() {
 }
 
 upload_credentials() {
+  echo "Uploading EC2 credentials for build to $host ..."
   rsync \
     --rsh="ssh -i $keypair" \
     --rsync-path="sudo rsync" \
@@ -73,12 +75,12 @@ upload_credentials() {
     $cert \
     ubuntu@$host:/mnt/
 
+  echo "Setting ownership of credentials ..."
   ssh -i $keypair ubuntu@$host "sudo chown ubuntu /mnt/{cert,pk}*"
 }
 
 upgrade_tools() {
-  #!/bin/sh
-
+  echo "Upgrading EC2 tools on $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   'export DEBIAN_FRONTEND=noninteractive && \
@@ -112,17 +114,8 @@ __remote_variable_setup() {
   '
 }
 
-__custom_setup() {
-  ssh -i $keypair \
-    ubuntu@$host \
-  "$remote_variable_setup"'
-  sudo chroot $imagedir wget --progress=dot -O /home/ubuntu/amibuilder_custom_setup $AMIBUILDER_CUSTOM_SETUP_URL
-  sudo chroot $imagedir chmod a+x /home/ubuntu/amibuilder_custom_setup
-  sudo chroot $imagedir /home/ubuntu/amibuilder_custom_setup
-  '
-}
-
 __build_image() {
+  echo "Building base image on $host in $imagedir from $imagesource ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -174,7 +167,19 @@ EOF
   '
 }
 
+__custom_setup() {
+  echo "Performing custom on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
+  ssh -i $keypair \
+    ubuntu@$host \
+  "$remote_variable_setup"'
+  sudo chroot $imagedir wget --progress=dot -O /home/ubuntu/amibuilder_custom_setup $AMIBUILDER_CUSTOM_SETUP_URL
+  sudo chroot $imagedir chmod a+x /home/ubuntu/amibuilder_custom_setup
+  sudo chroot $imagedir /home/ubuntu/amibuilder_custom_setup
+  '
+}
+
 __copy_image_to_ami() {
+  echo "Building and registering AMI..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -211,7 +216,7 @@ __copy_image_to_ami() {
     --description "$description" \
     $ebsopts \
     --snapshot "$snapshotid")
-  echo "NEW AMI: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
+  echo "NEW AMI REGISTERED: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
   '
 }
 
