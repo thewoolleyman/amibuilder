@@ -56,7 +56,9 @@ get_host() {
     egrep ^INSTANCE | cut -f4) && test -z $host; do echo -n .; sleep 1; done
   echo; echo "Waiting for ssh connectivity to $host ..."
   while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up"); test "$ssh_up" != "ssh up"; do
-    echo $ssh_up
+    echo "SSH connect response from $host: $ssh_up"
+    echo "Trying to SSH to $host again..."
+    sleep 3
   done
   echo
 }
