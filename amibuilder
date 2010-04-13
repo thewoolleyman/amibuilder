@@ -168,7 +168,8 @@ EOF
 }
 
 __custom_setup() {
-  echo "Performing custom on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
+  # TODO:  Execute '$AMIBUILDER_CUSTOM_SETUP_COMMANDS'
+  echo "Performing custom setup on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
