@@ -1,4 +1,4 @@
-AMIBUILDER
+AMIBuilder
 ==========
 Script to automate building a customized Ubuntu EC2 EBS boot AMI, based on Eric Hammond's tutorial at http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
 
