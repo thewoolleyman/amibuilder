@@ -112,6 +112,16 @@ __remote_variable_setup() {
   '
 }
 
+__custom_setup() {
+  ssh -i $keypair \
+    ubuntu@$host \
+  "$remote_variable_setup"'
+  sudo chroot $imagedir wget --progress=dot -O /home/ubuntu/amibuilder_custom_setup $AMIBUILDER_CUSTOM_SETUP_URL
+  sudo chroot $imagedir chmod a+x /home/ubuntu/amibuilder_custom_setup
+  sudo chroot $imagedir /home/ubuntu/amibuilder_custom_setup
+  '
+}
+
 __build_image() {
   ssh -i $keypair \
     ubuntu@$host \
@@ -208,6 +218,9 @@ __copy_image_to_ami() {
 create_ebs_ami() {
   __remote_variable_setup
   __build_image
+  if [[ -z $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
+    __run_custom_setup
+  fi
   __copy_image_to_ami
 }
 

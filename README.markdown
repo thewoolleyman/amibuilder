@@ -40,6 +40,13 @@ The following environment variables must be set.  You can set them yourself, or 
     # AMIBUILDER_NEW_AMI_PREFIX: a string with no spaces.  This string will be prepended to the name of your new AMI
     export AMIBUILDER_NEW_AMI_PREFIX=cloned
 
+You can also specify an optional <code>AMIBUILDER\_CUSTOM\_SETUP_URL</code> specify the URL of a custom script which will be automatically downloaded and run on the image before the AMI is created:
+
+    ### Custom Image Setup ###
+    # AMIBUILDER_CUSTOM_SETUP_URL: the URL of a custom script which will be automatically downloaded and run on the image before the AMI is created
+    export AMIBUILDER_CUSTOM_SETUP_URL='http://github.com/username/project/raw/master/custom_image_setup'
+
+
 Links
 =====
 * Building an Image: http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
