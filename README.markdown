@@ -1,11 +1,22 @@
 AMIBUILDER
 ==========
+Script to automate building a customized Ubuntu EC2 EBS boot AMI, based on Eric Hammond's tutorial at http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
 
-Script to automate building an Ubuntu EC2 EBS boot AMI, based on Eric Hammond's tutorial at http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
+Warning and Disclaimer
+======================
+WARNING!  This script will automatically create EC2 resources for which you will be charged!  It automatically starts and stops an instance, but if the script fails or is killed the instance may be left running.  Learn how to delete any unwanted resources via the the EC2 console before using this script:  https://console.aws.amazon.com/ec2/home
 
 Requirements
 ============
-The following environment variables must be set.  You can paste this into ~/.amibuilderrc and it will be read automatically (replace with your proper values)
+An Amazon EC2 account and credentials
+
+Usage
+============
+Invoke directly from bash or embed and invoke from another tool:
+
+    ./amibuilder
+
+The following environment variables must be set.  You can set them yourself, or paste this into ~/.amibuilderrc and they will be read automatically (replace with your proper values):
 
     ### EC2 Tools ###
     # EC2_HOME: the path of your EC2 API Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=351&categoryID=88)
@@ -29,26 +40,22 @@ The following environment variables must be set.  You can paste this into ~/.ami
     # AMIBUILDER_NEW_AMI_PREFIX: a string with no spaces.  This string will be prepended to the name of your new AMI
     export AMIBUILDER_NEW_AMI_PREFIX=cloned
 
-Usage
-=====
-    ./amibuilder
-
 Links
 =====
 * Building an Image: http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
 * Download Certs/Keys: https://aws-portal.amazon.com/gp/aws/developer/account/index.html
 * Understanding Credentials: http://alestic.com/2009/11/ec2-credentials
 * Protecting from data loss: http://alestic.com/2010/01/ec2-instance-locking
-* https://help.ubuntu.com/community/EC2StartersGuide
+* Ubuntu EC2 Images: https://help.ubuntu.com/community/EC2StartersGuide
 
 Viewing Key Info
 ================
     openssl x509 -in cert-yourid.pem -text
     openssl rsa -in pk-yourid.pem -text
+    openssl rsa -in keypair-yourid.pem -text
 
 License
 =======
-
     (The MIT License)
 
     Copyright (c) 2010 Chad Woolley
