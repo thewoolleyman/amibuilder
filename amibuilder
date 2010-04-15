@@ -276,6 +276,6 @@ run() {
 }
 
 config
-if [[ -z $AMIBUILDER_NO_BUILD ]] ; then
+if [[ ! $AMIBUILDER_NO_BUILD = true]] ; then
   run
 fi
