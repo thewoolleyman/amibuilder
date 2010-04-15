@@ -18,6 +18,7 @@ Invoke directly from bash or embed and invoke from another tool:
 
 The following environment variables must be set.  You can set them yourself, or paste this into ~/.amibuilderrc and they will be read automatically (replace with your proper values):
 
+    # ~/.amibuilderrc
     ### EC2 Tools ###
     # EC2_HOME: the path of your EC2 API Tools (http://developer.amazonwebservices.com/connect/entry.jspa?externalID=351&categoryID=88)
     export EC2_HOME=~/bin/ec2-api-tools
@@ -46,6 +47,9 @@ You can also specify an optional <code>AMIBUILDER\_CUSTOM\_SETUP_URL</code> spec
     # AMIBUILDER_CUSTOM_SETUP_URL: the URL of a custom script which will be automatically downloaded and run on the image before the AMI is created
     export AMIBUILDER_CUSTOM_SETUP_URL='http://github.com/username/project/raw/master/custom_image_setup'
 
+You can use a different config location if you wish:
+
+    AMIBUILDER_CONFIG=~/path/to/my/config
 
 Links
 =====
@@ -60,6 +64,59 @@ Viewing Key Info
     openssl x509 -in cert-yourid.pem -text
     openssl rsa -in pk-yourid.pem -text
     openssl rsa -in keypair-yourid.pem -text
+
+Developers and Debugging
+========================
+The following environment variable flags are useful for debugging failing steps of the build without performing a full run each time:
+
+    AMIBUILDER_NO_BUILD: if set, just load the functions, don't run the build
+    AMIBUILDER_HOST: if set, use this host for build instead of starting a new instance.  Also skips step to terminate instance
+    AMIBUILDER_NO_UPLOAD_CREDENTIALS: if set, skip step to upload EC2 credentials
+    AMIBUILDER_NO_UPGRADE_EC2_TOOLS: if set, skip step to upgrade EC2 tools
+    AMIBUILDER_NO_TERMINATE_INSTANCE: if set, skip step to terminate instance
+    AMIBUILDER_NO_BUILD_IMAGE: if set, skip the step to build the base image
+    AMIBUILDER_NO_CUSTOM_SETUP: if set, skip the step to perform custom user image setup
+    AMIBUILDER_NO_COPY_IMAGE_TO_AMI: if set, skip the step to copy the completed image to the AMI
+
+So, to leave an instance running so you can debug a custom setup script, you would invoke amibuilder, but not terminate the instance:
+
+    AMIBUILDER_NO_TERMINATE_INSTANCE=true ./amibuilder
+
+When the build completes, look for the hostname in the output:
+
+    ec2-174-129-181-254.compute-1.amazonaws.com was NOT terminated.
+
+Then create a '<code>~/.amibuilderrc\_debug</code>' file with debugging defaults which you can override or disable in order to debug a specific step of the build.  For example, you can use the following to debug your custom setup:
+
+    # ~/.amibuilderrc_debug
+    source ~/.amibuilderrc
+    export AMIBUILDER_NO_BUILD=false  # set to true if you want to skip entire build and invoke functions manually
+    export AMIBUILDER_HOST=ec2-x-x-x-x.compute-1.amazonaws.com  # use running host from previous non-terminated run
+    export AMIBUILDER_NO_UPLOAD_CREDENTIALS=true
+    export AMIBUILDER_NO_UPGRADE_EC2_TOOLS=true
+    export AMIBUILDER_NO_TERMINATE_INSTANCE=true
+    export AMIBUILDER_NO_BUILD_IMAGE=true
+    export AMIBUILDER_NO_CUSTOM_SETUP=false # set to false to debug your custom setup
+    export AMIBUILDER_NO_COPY_IMAGE_TO_AMI=true
+    export AMIBUILDER_CUSTOM_SETUP_URL='http://yourserver.com/amibuilder_custom_setup' # Host and edit your file with debugging on some public server
+
+Now you can run amibuilder repeatedly with the debug config, and it will only run the steps you have enabled:
+
+    AMIBUILDER_CONFIG=~/.amibuilderrc_debug ./amibuilder
+
+Now you can create and edit the debugging version of your custom setup script (on yourserver.com/amibuilder\_custom\_setup), then run amibuilder with the debug config repeatedly to download and run it:
+
+    # load debug config
+    source ~/.amibuilderrc_debug
+    ./amibuilder
+    
+You could even call functions directly:
+
+    # load debug config
+    source ~/.amibuilderrc_debug
+    # source amibuilder to load functions without performing build
+    AMIBUILDER_NO_BUILD=true source amibuilder
+    custom_setup
 
 License
 =======

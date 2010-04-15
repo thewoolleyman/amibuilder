@@ -6,9 +6,10 @@
 
 config() {
   # http://alestic.com/2009/11/ec2-credentials
-
-  if [ -e ~/.amibuilderrc ]; then
-    . ~/.amibuilderrc
+  
+  amibuilder_config=${AMIBUILDER_CONFIG:-~/.amibuilderrc}
+  if [ -e $amibuilder_config ]; then
+    source $amibuilder_config
   fi
 
   # EC2 Tools
@@ -25,6 +26,9 @@ config() {
   # AMI Builder Settings
   instancetype=${AMIBUILDER_INSTANCE_TYPE:?Please set AMIBUILDER_INSTANCE_TYPE to the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)}
   newamiprefix=${AMIBUILDER_NEW_AMI_PREFIX:?Please set AMIBUILDER_NEW_AMI_PREFIX to a string with no spaces.  This string will be prepended to the name of your new AMI}
+  
+  # AMI Builder Overrides for Debugging
+  host=$AMIBUILDER_HOST
 }
 
 run_instance() {
@@ -54,7 +58,9 @@ get_host() {
     --cert "$cert" \
      "$instanceid" | \
     egrep ^INSTANCE | cut -f4) && test -z $host; do echo -n .; sleep 1; done
-  echo; echo "Waiting for ssh connectivity to $host ..."
+  echo
+  echo "Got hostname $host for instance $instanceid"
+  echo "Waiting for ssh connectivity to $host ..."
   while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up"); test "$ssh_up" != "ssh up"; do
     echo "SSH connect response from $host: $ssh_up"
     echo "Trying to SSH to $host again..."
@@ -81,7 +87,7 @@ upload_credentials() {
   ssh -i $keypair ubuntu@$host "sudo chown ubuntu /mnt/{cert,pk}*"
 }
 
-upgrade_tools() {
+upgrade_ec2_tools() {
   echo "Upgrading EC2 tools on $host ..."
   ssh -i $keypair \
     ubuntu@$host \
@@ -94,7 +100,7 @@ upgrade_tools() {
   sudo -E apt-get install -y ec2-api-tools'
 }
 
-__remote_variable_setup() {
+remote_variable_setup() {
   remote_variable_setup='
   codename=karmic
   release=9.10
@@ -116,8 +122,8 @@ __remote_variable_setup() {
   '
 }
 
-__build_image() {
-  echo "Building base image on $host in $imagedir from $imagesource ..."
+build_image() {
+  echo "Building base image on $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -167,20 +173,27 @@ EOF
   '
 }
 
-__custom_setup() {
-  # TODO:  Execute '$AMIBUILDER_CUSTOM_SETUP_COMMANDS'
+custom_setup() {
   echo "Performing custom setup on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
-  sudo chroot $imagedir wget --progress=dot -O /home/ubuntu/amibuilder_custom_setup $AMIBUILDER_CUSTOM_SETUP_URL
-  sudo chroot $imagedir chmod a+x /home/ubuntu/amibuilder_custom_setup
-  sudo chroot $imagedir /home/ubuntu/amibuilder_custom_setup
+  custom_setup_url='$AMIBUILDER_CUSTOM_SETUP_URL'
+  custom_setup_script=${custom_setup_url##*/}
+  echo "Downloading custom setup script $custom_setup_script from $custom_setup_url ..."
+  sudo chroot $imagedir bash -c "curl -f -O /home/ubuntu/$custom_setup_script $custom_setup_url"
+  if [[ $? = 0 ]] ; then
+   echo "Running $custom_setup_script ..."
+   sudo chroot $imagedir chmod a+x /home/ubuntu/$custom_setup_script
+   sudo chroot $imagedir /home/ubuntu/$custom_setup_script
+  else
+    echo "Failed to download custom setup script from $custom_setup_url !!!"
+  fi
   '
 }
 
-__copy_image_to_ami() {
-  echo "Building and registering AMI..."
+copy_image_to_ami() {
+  echo "Building and registering AMI on  $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -222,16 +235,20 @@ __copy_image_to_ami() {
 }
 
 create_ebs_ami() {
-  __remote_variable_setup
-  __build_image
-  if [[ -z $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
-    __run_custom_setup
+  remote_variable_setup
+  if [[ $AMIBUILDER_NO_BUILD_IMAGE = true ]] ; then
+    build_image
   fi
-  __copy_image_to_ami
+  if [[ $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
+    custom_setup
+  fi
+  if [[ $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
+    copy_image_to_ami
+  fi
 }
 
 terminate_instance() {
-  echo "terminating $instanceid"
+  echo "terminating host $host on instance $instanceid"
   result=$(ec2-terminate-instances   \
     --private-key "$privatekey" \
     --cert "$cert" \
@@ -239,10 +256,26 @@ terminate_instance() {
   echo "$result"
 }
 
+run() {
+  if [[ -z $host ]] ; then
+    run_instance
+    get_host
+  fi
+  if [[ ! $AMIBUILDER_NO_UPLOAD_CREDENTIALS = true ]] ; then
+    upload_credentials
+  fi
+  if [[ ! $AMIBUILDER_NO_UPGRADE_EC2_TOOLS = true ]] ; then
+    upgrade_ec2_tools
+  fi
+  create_ebs_ami
+  if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -z $instanceid ]] ; then
+    terminate_instance
+  else
+    echo "$host was NOT terminated."
+  fi
+}
+
 config
-run_instance
-get_host
-upload_credentials
-upgrade_tools
-create_ebs_ami
-terminate_instance
+if [[ -z $AMIBUILDER_NO_BUILD ]] ; then
+  run
+fi
