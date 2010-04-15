@@ -181,11 +181,13 @@ custom_setup() {
   custom_setup_url='$AMIBUILDER_CUSTOM_SETUP_URL'
   custom_setup_script=${custom_setup_url##*/}
   echo "Downloading custom setup script $custom_setup_script from $custom_setup_url ..."
-  sudo chroot $imagedir bash -c "curl -f -O /home/ubuntu/$custom_setup_script $custom_setup_url"
+  echo "sudo chroot $imagedir bash -c \"curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url\""
+  sudo chroot $imagedir bash -c "curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url"
   if [[ $? = 0 ]] ; then
-   echo "Running $custom_setup_script ..."
-   sudo chroot $imagedir chmod a+x /home/ubuntu/$custom_setup_script
-   sudo chroot $imagedir /home/ubuntu/$custom_setup_script
+    sleep 3 # sometimes curl output is not yet done - is it just io, or would it be better to loop waiting for file?
+    echo "Running $custom_setup_script ..."
+    sudo chroot $imagedir chmod a+x /home/ubuntu/$custom_setup_script
+    sudo chroot $imagedir su - ubuntu -c "./$custom_setup_script"
   else
     echo "Failed to download custom setup script from $custom_setup_url !!!"
   fi
