@@ -236,10 +236,10 @@ copy_image_to_ami() {
 
 create_ebs_ami() {
   remote_variable_setup
-  if [[ $AMIBUILDER_NO_BUILD_IMAGE = true ]] ; then
+  if [[ ! $AMIBUILDER_NO_BUILD_IMAGE = true ]] ; then
     build_image
   fi
-  if [[ $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
+  if [[ ! $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
     custom_setup
   fi
   if [[ $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
