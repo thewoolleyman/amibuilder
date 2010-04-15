@@ -242,7 +242,7 @@ create_ebs_ami() {
   if [[ ! $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
     custom_setup
   fi
-  if [[ $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
+  if [[ ! $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
     copy_image_to_ami
   fi
 }
