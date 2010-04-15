@@ -268,7 +268,7 @@ run() {
     upgrade_ec2_tools
   fi
   create_ebs_ami
-  if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -z $instanceid ]] ; then
+  if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -n $instanceid ]] ; then
     terminate_instance
   else
     echo "$host was NOT terminated."
