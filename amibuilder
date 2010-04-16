@@ -38,7 +38,7 @@ run_instance() {
     ami_to_run_build='ami-ab15f6c2' # 64 bit
   fi
   
-  echo "Running instance to perform AMI build: ami=$ami_to_run_build, instancetype=$instancetype ..."
+  echo "AMIBUILDER: Running instance to perform AMI build: ami=$ami_to_run_build, instancetype=$instancetype ..."
   instanceid=$(ec2-run-instances \
     --private-key "$privatekey" \
     --cert "$cert" \
@@ -47,30 +47,30 @@ run_instance() {
     --instance-type "$instancetype" \
     "$ami_to_run_build" |
     egrep ^INSTANCE | cut -f2)
-  echo "Started instance: instanceid=$instanceid"
+  echo "AMIBUILDER: Started instance: instanceid=$instanceid"
   instanceid=$instanceid
 }
 
 get_host() {
-  echo "Finding hostname for $instanceid ..."
+  echo "AMIBUILDER: Finding hostname for $instanceid ..."
   while host=$(ec2-describe-instances \
     --private-key "$privatekey" \
     --cert "$cert" \
      "$instanceid" | \
     egrep ^INSTANCE | cut -f4) && test -z $host; do echo -n .; sleep 1; done
   echo
-  echo "Got hostname $host for instance $instanceid"
-  echo "Waiting for ssh connectivity to $host ..."
+  echo "AMIBUILDER: Got hostname $host for instance $instanceid"
+  echo "AMIBUILDER: Waiting for ssh connectivity to $host ..."
   while ssh_up=$(ssh -i $keypair ubuntu@$host "echo ssh up"); test "$ssh_up" != "ssh up"; do
-    echo "SSH connect response from $host: $ssh_up"
-    echo "Trying to SSH to $host again..."
+    echo "AMIBUILDER: SSH connect response from $host: $ssh_up"
+    echo "AMIBUILDER: Trying to SSH to $host again..."
     sleep 3
   done
   echo
 }
 
 upload_credentials() {
-  echo "Uploading EC2 credentials for build to $host ..."
+  echo "AMIBUILDER: Uploading EC2 credentials for build to $host ..."
   rsync \
     --rsh="ssh -i $keypair" \
     --rsync-path="sudo rsync" \
@@ -83,16 +83,16 @@ upload_credentials() {
     $cert \
     ubuntu@$host:/mnt/
 
-  echo "Setting ownership of credentials ..."
+  echo "AMIBUILDER: Setting ownership of credentials ..."
   ssh -i $keypair ubuntu@$host "sudo chown ubuntu /mnt/{cert,pk}*"
 }
 
 upgrade_ec2_tools() {
-  echo "Upgrading EC2 tools on $host ..."
+  echo "AMIBUILDER: Upgrading EC2 tools on $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   'export DEBIAN_FRONTEND=noninteractive && \
-  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
+  echo "AMIBUILDER: deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
     sudo tee /etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list && \
   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873 && \
   sudo apt-get update && \
@@ -123,7 +123,7 @@ remote_variable_setup() {
 }
 
 build_image() {
-  echo "Building base image on $host ..."
+  echo "AMIBUILDER: Building base image on $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -141,12 +141,12 @@ build_image() {
   sudo perl -pi -e '\''s%(universe)$%$1 multiverse%'\'' \
     $imagedir/etc/ec2-init/templates/sources.list.tmpl
   # Add Alestic PPA for runurl package (handy in user-data scripts)
-  echo "deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main" |
+  echo "AMIBUILDER: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main" |
     sudo tee $imagedir/etc/apt/sources.list.d/alestic-ppa.list
   sudo chroot $imagedir \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571
   # Add ubuntu-on-ec2/ec2-tools PPA for updated ec2-ami-tools
-  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" |
+  echo "AMIBUILDER: deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" |
     sudo tee $imagedir/etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list
   sudo chroot $imagedir \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873
@@ -174,28 +174,28 @@ EOF
 }
 
 custom_setup() {
-  echo "Performing custom setup on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
+  echo "AMIBUILDER: Performing custom setup on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
   custom_setup_url='$AMIBUILDER_CUSTOM_SETUP_URL'
   custom_setup_script=${custom_setup_url##*/}
-  echo "Downloading custom setup script $custom_setup_script from $custom_setup_url ..."
-  echo "sudo chroot $imagedir bash -c \"curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url\""
+  echo "AMIBUILDER: Downloading custom setup script $custom_setup_script from $custom_setup_url ..."
+  echo "AMIBUILDER: sudo chroot $imagedir bash -c \"curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url\""
   sudo chroot $imagedir bash -c "curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url"
   if [[ $? = 0 ]] ; then
     sleep 3 # sometimes curl output is not yet done - is it just io, or would it be better to loop waiting for file?
-    echo "Running $custom_setup_script ..."
+    echo "AMIBUILDER: Running $custom_setup_script ..."
     sudo chroot $imagedir chmod a+x /home/ubuntu/$custom_setup_script
     sudo chroot $imagedir su - ubuntu -c "./$custom_setup_script"
   else
-    echo "Failed to download custom setup script from $custom_setup_url !!!"
+    echo "AMIBUILDER: Failed to download custom setup script from $custom_setup_url !!!"
   fi
   '
 }
 
 copy_image_to_ami() {
-  echo "Building and registering AMI on  $host ..."
+  echo "AMIBUILDER: Building and registering AMI on  $host ..."
   ssh -i $keypair \
     ubuntu@$host \
   "$remote_variable_setup"'
@@ -232,7 +232,7 @@ copy_image_to_ami() {
     --description "$description" \
     $ebsopts \
     --snapshot "$snapshotid")
-  echo "NEW AMI REGISTERED: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
+  echo "AMIBUILDER: NEW AMI REGISTERED: AMI ID=$newami, EBS ID=$volumeid, EBS SNAPSHOT ID=$snapshotid, PREFIX=$prefix, DESCRIPTION=$description"
   '
 }
 
@@ -250,12 +250,12 @@ create_ebs_ami() {
 }
 
 terminate_instance() {
-  echo "terminating host $host on instance $instanceid"
+  echo "AMIBUILDER: terminating host $host on instance $instanceid"
   result=$(ec2-terminate-instances   \
     --private-key "$privatekey" \
     --cert "$cert" \
     "$instanceid")
-  echo "$result"
+  echo "AMIBUILDER: $result"
 }
 
 run() {
@@ -273,7 +273,7 @@ run() {
   if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -n $instanceid ]] ; then
     terminate_instance
   else
-    echo "$host was NOT terminated."
+    echo "AMIBUILDER: $host was NOT terminated."
   fi
 }
 
