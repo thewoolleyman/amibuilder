@@ -32,17 +32,19 @@ config() {
   # AMI Builder Settings
   instancetype=${AMIBUILDER_INSTANCE_TYPE:?Please set AMIBUILDER_INSTANCE_TYPE to the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)}
   newamiprefix=${AMIBUILDER_NEW_AMI_PREFIX:?Please set AMIBUILDER_NEW_AMI_PREFIX to a string with no spaces.  This string will be prepended to the name of your new AMI}
+  AMIBUILDER_CUSTOM_SETUP_URL=${AMIBUILDER_CUSTOM_SETUP_URL:-''}
+  AMIBUILDER_CUSTOM_SETUP_VARS=${AMIBUILDER_CUSTOM_SETUP_VARS:-''}
+
 
   # AMIBUILDER debugging options
-  export AMIBUILDER_NO_BUILD=${AMIBUILDER_CONFIG:-false}
-  export AMIBUILDER_HOST=${AMIBUILDER_HOST:-''}
-  export AMIBUILDER_CUSTOM_SETUP_URL=${AMIBUILDER_CUSTOM_SETUP_URL:-''}
-  export AMIBUILDER_NO_UPLOAD_CREDENTIALS=${AMIBUILDER_NO_UPLOAD_CREDENTIALS:-false}
-  export AMIBUILDER_NO_UPGRADE_EC2_TOOLS=${AMIBUILDER_NO_UPGRADE_EC2_TOOLS:-false}
-  export AMIBUILDER_NO_TERMINATE_INSTANCE=${AMIBUILDER_NO_TERMINATE_INSTANCE:-false}
-  export AMIBUILDER_NO_BUILD_IMAGE=${AMIBUILDER_NO_BUILD_IMAGE:-false}
-  export AMIBUILDER_NO_CUSTOM_SETUP=${AMIBUILDER_NO_CUSTOM_SETUP:-false}
-  export AMIBUILDER_NO_COPY_IMAGE_TO_AMI=${AMIBUILDER_NO_COPY_IMAGE_TO_AMI:-false}
+  AMIBUILDER_NO_BUILD=${AMIBUILDER_CONFIG:-false}
+  AMIBUILDER_HOST=${AMIBUILDER_HOST:-''}
+  AMIBUILDER_NO_UPLOAD_CREDENTIALS=${AMIBUILDER_NO_UPLOAD_CREDENTIALS:-false}
+  AMIBUILDER_NO_UPGRADE_EC2_TOOLS=${AMIBUILDER_NO_UPGRADE_EC2_TOOLS:-false}
+  AMIBUILDER_NO_TERMINATE_INSTANCE=${AMIBUILDER_NO_TERMINATE_INSTANCE:-false}
+  AMIBUILDER_NO_BUILD_IMAGE=${AMIBUILDER_NO_BUILD_IMAGE:-false}
+  AMIBUILDER_NO_CUSTOM_SETUP=${AMIBUILDER_NO_CUSTOM_SETUP:-false}
+  AMIBUILDER_NO_COPY_IMAGE_TO_AMI=${AMIBUILDER_NO_COPY_IMAGE_TO_AMI:-false}
 }
 
 run_instance() {
@@ -197,7 +199,7 @@ custom_setup() {
   echo "AMIBUILDER: Changing permissions on $custom_setup_script ..."
   run "sudo chroot $imagedir chmod a+x $custom_setup_script"
   echo "AMIBUILDER: Running $custom_setup_script ..."
-  run "sudo chroot $imagedir su - ubuntu -c \"cd /home/ubuntu && pwd && $custom_setup_script\""
+  run "sudo chroot $imagedir su - ubuntu -c \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
 }
 
 copy_image_to_ami() {

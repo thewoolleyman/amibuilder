@@ -46,6 +46,8 @@ You can also specify an optional <code>AMIBUILDER\_CUSTOM\_SETUP_URL</code> spec
     ### Custom Image Setup ###
     # AMIBUILDER_CUSTOM_SETUP_URL: the URL of a custom script which will be automatically downloaded and run on the image before the AMI is created
     export AMIBUILDER_CUSTOM_SETUP_URL='http://github.com/username/project/raw/master/custom_image_setup'
+    # AMIBUILDER_CUSTOM_SETUP_VARS: Variable assignments to evaluate before custom setup script is executed.  E.g. AMIBUILDER_CUSTOM_SETUP_VARS="VAR1='value' VAR2='value'"
+    export AMIBUILDER_CUSTOM_SETUP_VARS=''
 
 You can use a different config location if you wish:
 
@@ -110,7 +112,7 @@ Now you can create and edit the debugging version of your custom setup script (o
     source ~/.amibuilderrc_debug
     ./amibuilder
     
-You could even call functions directly:
+You could even call functions directly (You may want to comment 'set -e', though, so your terminal doesn't close on errors):
 
     # load debug config
     source ~/.amibuilderrc_debug
