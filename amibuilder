@@ -5,7 +5,7 @@
 #  Copyright (c) 2010 Chad Woolley - The MIT License
 
 set -o noclobber
-set -o errexit
+set -e
 set -o pipefail
 set -o nounset
 trap 'echo AMIBUILDER: error on line $LINENO' ERR
@@ -32,9 +32,17 @@ config() {
   # AMI Builder Settings
   instancetype=${AMIBUILDER_INSTANCE_TYPE:?Please set AMIBUILDER_INSTANCE_TYPE to the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)}
   newamiprefix=${AMIBUILDER_NEW_AMI_PREFIX:?Please set AMIBUILDER_NEW_AMI_PREFIX to a string with no spaces.  This string will be prepended to the name of your new AMI}
-  
-  # AMI Builder Overrides for Debugging
-  host=$AMIBUILDER_HOST
+
+  # AMIBUILDER debugging options
+  export AMIBUILDER_NO_BUILD=${AMIBUILDER_CONFIG:-false}
+  export AMIBUILDER_HOST=${AMIBUILDER_HOST:-''}
+  export AMIBUILDER_CUSTOM_SETUP_URL=${AMIBUILDER_CUSTOM_SETUP_URL:-''}
+  export AMIBUILDER_NO_UPLOAD_CREDENTIALS=${AMIBUILDER_NO_UPLOAD_CREDENTIALS:-false}
+  export AMIBUILDER_NO_UPGRADE_EC2_TOOLS=${AMIBUILDER_NO_UPGRADE_EC2_TOOLS:-false}
+  export AMIBUILDER_NO_TERMINATE_INSTANCE=${AMIBUILDER_NO_TERMINATE_INSTANCE:-false}
+  export AMIBUILDER_NO_BUILD_IMAGE=${AMIBUILDER_NO_BUILD_IMAGE:-false}
+  export AMIBUILDER_NO_CUSTOM_SETUP=${AMIBUILDER_NO_CUSTOM_SETUP:-false}
+  export AMIBUILDER_NO_COPY_IMAGE_TO_AMI=${AMIBUILDER_NO_COPY_IMAGE_TO_AMI:-false}
 }
 
 run_instance() {
@@ -95,10 +103,9 @@ upload_credentials() {
 
 upgrade_ec2_tools() {
   echo "AMIBUILDER: Upgrading EC2 tools on $host ..."
-  ssh -i $keypair \
-    ubuntu@$host \
+  run \
   'export DEBIAN_FRONTEND=noninteractive && \
-  echo "AMIBUILDER: deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
+  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
     sudo tee /etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list && \
   sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873 && \
   sudo apt-get update && \
@@ -108,23 +115,9 @@ upgrade_ec2_tools() {
 
 remote_variable_setup() {
   remote_variable_setup='
-  codename=karmic
-  release=9.10
-  tag=server
-  if [ $(uname -m) = "x86_64" ]; then
-    arch=x86_64
-    arch2=amd64
-    ebsopts="--kernel=aki-fd15f694 --ramdisk=ari-c515f6ac"
-    ebsopts="$ebsopts --block-device-mapping /dev/sdb=ephemeral0"
-  else
-    arch=i386
-    arch2=i386
-    ebsopts="--kernel=aki-5f15f636 --ramdisk=ari-0915f660"
-    ebsopts="$ebsopts --block-device-mapping /dev/sda2=ephemeral0"
-  fi
-  imagesource=http://uec-images.ubuntu.com/releases/$codename/release/unpacked/ubuntu-$release-$tag-uec-$arch2.img.tar.gz
-  image=/mnt/$codename-$tag-uec-$arch2.img
-  imagedir=/mnt/$codename-uec-$arch2
+  imagesource='$imagesource'
+  image='$image'
+  imagedir='$imagedir'
   '
 }
 
@@ -132,7 +125,7 @@ variable_setup() {
   codename=karmic
   release=9.10
   tag=server
-  if [ $(run 'uname -m') = "x86_64" ]; then
+  if [[ $(run 'uname -m') = "x86_64" ]] ; then
     arch=x86_64
     arch2=amd64
     ebsopts="--kernel=aki-fd15f694 --ramdisk=ari-c515f6ac"
@@ -150,54 +143,42 @@ variable_setup() {
 
 build_image() {
   echo "AMIBUILDER: Building base image on $host ..."
-  ssh -i $keypair \
-    ubuntu@$host \
-  "$remote_variable_setup"'
-  wget --progress=dot:mega -O- $imagesource |
-    sudo tar xzf - -C /mnt
-  sudo mkdir -p $imagedir
-  sudo mount -o loop $image $imagedir
-
+  run "wget --progress=dot:mega -O- $imagesource | sudo tar xzf - -C /mnt"
+  run "sudo mkdir -p $imagedir"
+  run "sudo mount -o loop $image $imagedir"
 
   # Allow network access from chroot environment
-  sudo cp /etc/resolv.conf $imagedir/etc/
+  run "sudo cp /etc/resolv.conf $imagedir/etc/"
   # Fix what I consider to be a bug in vmbuilder
-  sudo rm -f $imagedir/etc/hostname
+  run "sudo rm -f $imagedir/etc/hostname"
   # Add multiverse
-  sudo perl -pi -e '\''s%(universe)$%$1 multiverse%'\'' \
-    $imagedir/etc/ec2-init/templates/sources.list.tmpl
+  run "sudo perl -pi -e 's%(universe)$%\$1 multiverse%' $imagedir/etc/ec2-init/templates/sources.list.tmpl"
   # Add Alestic PPA for runurl package (handy in user-data scripts)
-  echo "deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main" |
-    sudo tee $imagedir/etc/apt/sources.list.d/alestic-ppa.list
-  sudo chroot $imagedir su - ubuntu -c "touch /home/ubuntu/.bash_history"
-  sudo chroot $imagedir \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571
+  run "echo \"deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main\" | \
+      sudo tee $imagedir/etc/apt/sources.list.d/alestic-ppa.list"
+  run "sudo chroot $imagedir su - ubuntu -c \"touch /home/ubuntu/.bash_history\""
+  run "sudo chroot $imagedir apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571"
   # Add ubuntu-on-ec2/ec2-tools PPA for updated ec2-ami-tools
-  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" |
-    sudo tee $imagedir/etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list
-  sudo chroot $imagedir \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873
+  run "echo \"deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main\" | \
+    sudo tee $imagedir/etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list"
+  run "sudo chroot $imagedir apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873"
   # Upgrade the system and install packages
-  sudo chroot $imagedir mount -t proc none /proc
-  sudo chroot $imagedir mount -t devpts none /dev/pts
-  sudo touch $imagedir/usr/sbin/policy-rc.d
-  sudo chown ubuntu $imagedir/usr/sbin/policy-rc.d
-  sudo cat <<EOF > $imagedir/usr/sbin/policy-rc.d
+  run "sudo chroot $imagedir mount -t proc none /proc"
+  run "sudo chroot $imagedir mount -t devpts none /dev/pts"
+  run "sudo touch $imagedir/usr/sbin/policy-rc.d"
+  run "sudo chown ubuntu $imagedir/usr/sbin/policy-rc.d"
+  run "sudo cat <<EOF > $imagedir/usr/sbin/policy-rc.d
   #!/bin/sh
   exit 101
 EOF
-  chmod 755 $imagedir/usr/sbin/policy-rc.d
-  export DEBIAN_FRONTEND=noninteractive
-  sudo chroot $imagedir apt-get update
-
-  sudo -E chroot $imagedir /usr/bin/env LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 apt-get install -y language-pack-en-base
-
-  sudo -E chroot $imagedir apt-get dist-upgrade -y &&
-  sudo -E chroot $imagedir apt-get install -y runurl ec2-ami-tools
-
-  # additional packages for building and common dependencies
-  sudo -E chroot $imagedir apt-get install -y build-essential zlib1g-dev libreadline5-dev
-  '
+"
+  run "chmod 755 $imagedir/usr/sbin/policy-rc.d"
+  run "export DEBIAN_FRONTEND=noninteractive &&
+    sudo chroot $imagedir apt-get update &&
+    sudo -E chroot $imagedir /usr/bin/env LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 apt-get install -y language-pack-en-base &&
+    sudo -E chroot $imagedir apt-get dist-upgrade -y &&
+    sudo -E chroot $imagedir apt-get install -y runurl ec2-ami-tools &&
+    sudo -E chroot $imagedir apt-get install -y build-essential zlib1g-dev libreadline5-dev"
 }
 
 custom_setup() {
@@ -221,22 +202,18 @@ custom_setup() {
 
 copy_image_to_ami() {
   echo "AMIBUILDER: Building and registering AMI on  $host ..."
-  ssh -i $keypair \
-    ubuntu@$host \
-  "$remote_variable_setup"'
-  sudo chroot $imagedir umount /proc
-  sudo chroot $imagedir umount /dev/pts
-  sudo rm -f $imagedir/usr/sbin/policy-rc.d
+  run "sudo chroot $imagedir umount /proc"
+  run "sudo chroot $imagedir umount /dev/pts"
+  run "sudo rm -f $imagedir/usr/sbin/policy-rc.d"
 
-
+  run $remote_variable_setup'
   size=15 # root disk in GB
   now=$(date +%Y%m%d-%H%M)
   prefix='$newamiprefix'-ubuntu-$release-$codename-$tag-$arch-$now
   description="Ubuntu $release $codename $tag $arch $now"
   export EC2_CERT=$(echo /mnt/cert-*.pem)
   export EC2_PRIVATE_KEY=$(echo /mnt/pk-*.pem)
-  volumeid=$(ec2-create-volume --size $size --availability-zone us-east-1a |
-    cut -f2)
+  volumeid=$(ec2-create-volume --size $size --availability-zone us-east-1a | cut -f2)
   instanceid=$(wget --progress=dot -qO- http://instance-data/latest/meta-data/instance-id)
   ec2-attach-volume --device /dev/sdi --instance "$instanceid" "$volumeid"
   while [ ! -e /dev/sdi ]; do echo -n .; sleep 1; done
@@ -267,7 +244,7 @@ create_ebs_ami() {
     build_image
   fi
   if [[ ! $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
-    custom_setup_new
+    custom_setup
   fi
   if [[ ! $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
     copy_image_to_ami
@@ -302,10 +279,13 @@ run_ignoring_error() {
 }
 
 build() {
-  if [[ -z $host ]] ; then
+  if [[ -z $AMIBUILDER_HOST ]] ; then
     run_instance
     get_host
+  else
+    host=$AMIBUILDER_HOST
   fi
+  variable_setup
   if [[ ! $AMIBUILDER_NO_UPLOAD_CREDENTIALS = true ]] ; then
     upload_credentials
   fi
@@ -318,6 +298,5 @@ build() {
 
 config
 if [[ ! $AMIBUILDER_NO_BUILD = true ]] ; then
-  variable_setup
   build
 fi
