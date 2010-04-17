@@ -4,6 +4,12 @@
 #  Script to automate building a customized Ubuntu EC2 EBS boot AMI, based on Eric Hammond's tutorial at http://alestic.com/2010/01/ec2-ebs-boot-ubuntu
 #  Copyright (c) 2010 Chad Woolley - The MIT License
 
+set -o noclobber
+set -o errexit
+set -o pipefail
+set -o nounset
+trap 'echo AMIBUILDER: error on line $LINENO' ERR
+
 config() {
   # http://alestic.com/2009/11/ec2-credentials
   
@@ -122,6 +128,26 @@ remote_variable_setup() {
   '
 }
 
+variable_setup() {
+  codename=karmic
+  release=9.10
+  tag=server
+  if [ $(run 'uname -m') = "x86_64" ]; then
+    arch=x86_64
+    arch2=amd64
+    ebsopts="--kernel=aki-fd15f694 --ramdisk=ari-c515f6ac"
+    ebsopts="$ebsopts --block-device-mapping /dev/sdb=ephemeral0"
+  else
+    arch=i386
+    arch2=i386
+    ebsopts="--kernel=aki-5f15f636 --ramdisk=ari-0915f660"
+    ebsopts="$ebsopts --block-device-mapping /dev/sda2=ephemeral0"
+  fi
+  imagesource=http://uec-images.ubuntu.com/releases/$codename/release/unpacked/ubuntu-$release-$tag-uec-$arch2.img.tar.gz
+  image=/mnt/$codename-$tag-uec-$arch2.img
+  imagedir=/mnt/$codename-uec-$arch2  
+}
+
 build_image() {
   echo "AMIBUILDER: Building base image on $host ..."
   ssh -i $keypair \
@@ -141,12 +167,13 @@ build_image() {
   sudo perl -pi -e '\''s%(universe)$%$1 multiverse%'\'' \
     $imagedir/etc/ec2-init/templates/sources.list.tmpl
   # Add Alestic PPA for runurl package (handy in user-data scripts)
-  echo "AMIBUILDER: deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main" |
+  echo "deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main" |
     sudo tee $imagedir/etc/apt/sources.list.d/alestic-ppa.list
+  sudo chroot $imagedir su - ubuntu -c "touch /home/ubuntu/.bash_history"
   sudo chroot $imagedir \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571
   # Add ubuntu-on-ec2/ec2-tools PPA for updated ec2-ami-tools
-  echo "AMIBUILDER: deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" |
+  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" |
     sudo tee $imagedir/etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list
   sudo chroot $imagedir \
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873
@@ -175,23 +202,21 @@ EOF
 
 custom_setup() {
   echo "AMIBUILDER: Performing custom setup on $host using script at $AMIBUILDER_CUSTOM_SETUP_URL ..."
-  ssh -i $keypair \
-    ubuntu@$host \
-  "$remote_variable_setup"'
-  custom_setup_url='$AMIBUILDER_CUSTOM_SETUP_URL'
-  custom_setup_script=${custom_setup_url##*/}
+  custom_setup_url=$AMIBUILDER_CUSTOM_SETUP_URL
+  custom_setup_script=/home/ubuntu/${custom_setup_url##*/}
   echo "AMIBUILDER: Downloading custom setup script $custom_setup_script from $custom_setup_url ..."
   echo "AMIBUILDER: sudo chroot $imagedir bash -c \"curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url\""
-  sudo chroot $imagedir bash -c "curl -f -o /home/ubuntu/$custom_setup_script $custom_setup_url"
-  if [[ $? = 0 ]] ; then
-    sleep 3 # sometimes curl output is not yet done - is it just io, or would it be better to loop waiting for file?
-    echo "AMIBUILDER: Running $custom_setup_script ..."
-    sudo chroot $imagedir chmod a+x /home/ubuntu/$custom_setup_script
-    sudo chroot $imagedir su - ubuntu -c "./$custom_setup_script"
-  else
-    echo "AMIBUILDER: Failed to download custom setup script from $custom_setup_url !!!"
-  fi
-  '
+  run "sudo chroot $imagedir su - ubuntu -c \"curl -f -o $custom_setup_script $custom_setup_url\""
+  while exists=$(run "sudo chroot $imagedir su - ubuntu -c \"if [[ -e $custom_setup_script ]] ; then echo exists; fi\""); test "$exists" != "exists" ; do
+    echo "AMIBUILDER: Waiting for curl to finish downloading $custom_setup_script from $custom_setup_url ..."
+    sleep 3
+  done
+  echo "AMIBUILDER: $custom_setup_url successfully downloaded to $custom_setup_script ..."
+
+  echo "AMIBUILDER: Changing permissions on $custom_setup_script ..."
+  run "sudo chroot $imagedir chmod a+x $custom_setup_script"
+  echo "AMIBUILDER: Running $custom_setup_script ..."
+  run "sudo chroot $imagedir su - ubuntu -c \"cd /home/ubuntu && pwd && $custom_setup_script\""
 }
 
 copy_image_to_ami() {
@@ -242,7 +267,7 @@ create_ebs_ami() {
     build_image
   fi
   if [[ ! $AMIBUILDER_NO_CUSTOM_SETUP = true ]] && [[ -n $AMIBUILDER_CUSTOM_SETUP_URL ]] ; then
-    custom_setup
+    custom_setup_new
   fi
   if [[ ! $AMIBUILDER_NO_COPY_IMAGE_TO_AMI = true ]] ; then
     copy_image_to_ami
@@ -250,15 +275,33 @@ create_ebs_ami() {
 }
 
 terminate_instance() {
-  echo "AMIBUILDER: terminating host $host on instance $instanceid"
-  result=$(ec2-terminate-instances   \
-    --private-key "$privatekey" \
-    --cert "$cert" \
-    "$instanceid")
-  echo "AMIBUILDER: $result"
+  if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -n $instanceid ]] ; then
+    echo "AMIBUILDER: terminating host $host on instance $instanceid"
+    result=$(ec2-terminate-instances   \
+      --private-key "$privatekey" \
+      --cert "$cert" \
+      "$instanceid")
+    echo "AMIBUILDER: $result"
+  else
+    echo "AMIBUILDER: $host was NOT terminated."
+  fi
 }
 
 run() {
+  local arg_array i rc
+  for arg; do
+    arg_array[i++]=$(printf %q "$arg")
+  done
+  ssh -i $keypair ubuntu@$host "$@"
+}
+
+run_ignoring_error() {
+  set +e
+  $(run "$@")
+  set -e
+}
+
+build() {
   if [[ -z $host ]] ; then
     run_instance
     get_host
@@ -270,14 +313,11 @@ run() {
     upgrade_ec2_tools
   fi
   create_ebs_ami
-  if [[ ! $AMIBUILDER_NO_TERMINATE_INSTANCE = true ]] && [[ -n $instanceid ]] ; then
-    terminate_instance
-  else
-    echo "AMIBUILDER: $host was NOT terminated."
-  fi
+  terminate_instance
 }
 
 config
 if [[ ! $AMIBUILDER_NO_BUILD = true ]] ; then
-  run
+  variable_setup
+  build
 fi
