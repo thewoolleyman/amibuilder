@@ -198,7 +198,8 @@ custom_setup() {
   echo "AMIBUILDER: Changing permissions on $custom_setup_script ..."
   run "sudo chroot $imagedir chmod a+x $custom_setup_script"
   echo "AMIBUILDER: Running $custom_setup_script ..."
-  run "sudo chroot $imagedir sudo -u ubuntu -i \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
+  echo "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
+  run "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
 }
 
 copy_image_to_ami() {
