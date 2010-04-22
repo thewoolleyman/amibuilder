@@ -26,14 +26,14 @@ The following environment variables must be set.  You can set them yourself, or 
     export EC2_AMITOOL_HOME=~/bin/ec2-ami0tools
 
     ### EC2 Credentials ###
-    # EC2_PRIVATE_KEY: the path of your private key (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
-    export EC2_PRIVATE_KEY=~/.ec2/pk-yourid.pem
-    # EC2_CERT: the path of your cert (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
-    export EC2_CERT=~/.ec2/cert-yourid.pem
-    # EC2_KEYPAIR: the path of your keypair private key (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
-    export EC2_KEYPAIR=~/.ec2/keypair-yourid.pem
     # EC2_KEYPAIR_NAME: the name of your keypair (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
     export EC2_KEYPAIR_NAME=yourid
+    # EC2_PRIVATE_KEY: the path of your private key (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
+    export EC2_PRIVATE_KEY=~/.ec2/pk-$EC2_KEYPAIR_NAME.pem
+    # EC2_CERT: the path of your cert (See X.509 Certificates at https://aws-portal.amazon.com/gp/aws/developer/account/index.html?action=access-key#access_credentials)
+    export EC2_CERT=~/.ec2/cert-$EC2_KEYPAIR_NAME.pem
+    # EC2_KEYPAIR: the path of your keypair private key (https://console.aws.amazon.com/ec2/home#c=EC2&s=KeyPairs)
+    export EC2_KEYPAIR=~/.ec2/keypair-$EC2_KEYPAIR_NAME.pem
 
     ### AMI Builder Settings ###
     # AMIBUILDER_INSTANCE_TYPE: the type of instance you want, e.g. m1.small for 32 bit and m1.large for 64 bit (See http://aws.amazon.com/ec2/instance-types/)
