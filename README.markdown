@@ -74,7 +74,6 @@ The following environment variable flags are useful for debugging failing steps 
     AMIBUILDER_NO_BUILD: if set, just load the functions, don't run the build
     AMIBUILDER_HOST: if set, use this host for build instead of starting a new instance.  Also skips step to terminate instance
     AMIBUILDER_NO_UPLOAD_CREDENTIALS: if set, skip step to upload EC2 credentials
-    AMIBUILDER_NO_UPGRADE_EC2_TOOLS: if set, skip step to upgrade EC2 tools
     AMIBUILDER_NO_TERMINATE_INSTANCE: if set, skip step to terminate instance
     AMIBUILDER_NO_BUILD_IMAGE: if set, skip the step to build the base image
     AMIBUILDER_NO_CUSTOM_SETUP: if set, skip the step to perform custom user image setup
@@ -95,7 +94,6 @@ Then create a '<code>~/.amibuilderrc\_debug</code>' file with debugging defaults
     export AMIBUILDER_NO_BUILD=false  # set to true if you want to skip entire build and invoke functions manually
     export AMIBUILDER_HOST=ec2-x-x-x-x.compute-1.amazonaws.com  # use running host from previous non-terminated run
     export AMIBUILDER_NO_UPLOAD_CREDENTIALS=true
-    export AMIBUILDER_NO_UPGRADE_EC2_TOOLS=true
     export AMIBUILDER_NO_TERMINATE_INSTANCE=true
     export AMIBUILDER_NO_BUILD_IMAGE=true
     export AMIBUILDER_NO_CUSTOM_SETUP=false # set to false to debug your custom setup

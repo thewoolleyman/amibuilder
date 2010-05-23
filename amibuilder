@@ -39,7 +39,6 @@ config() {
   AMIBUILDER_NO_BUILD=${AMIBUILDER_CONFIG:-false}
   AMIBUILDER_HOST=${AMIBUILDER_HOST:-''}
   AMIBUILDER_NO_UPLOAD_CREDENTIALS=${AMIBUILDER_NO_UPLOAD_CREDENTIALS:-false}
-  AMIBUILDER_NO_UPGRADE_EC2_TOOLS=${AMIBUILDER_NO_UPGRADE_EC2_TOOLS:-false}
   AMIBUILDER_NO_TERMINATE_INSTANCE=${AMIBUILDER_NO_TERMINATE_INSTANCE:-false}
   AMIBUILDER_NO_BUILD_IMAGE=${AMIBUILDER_NO_BUILD_IMAGE:-false}
   AMIBUILDER_NO_CUSTOM_SETUP=${AMIBUILDER_NO_CUSTOM_SETUP:-false}
@@ -48,9 +47,9 @@ config() {
 
 run_instance() {
   if [[ "$instancetype" = "m1.small" || "$instancetype" = "c1.medium" ]] ; then
-    ami_to_run_build='ami-1515f67c' # 32 bit
+    ami_to_run_build='ami-2d4aa444' # 32 bit
   else
-    ami_to_run_build='ami-ab15f6c2' # 64 bit
+    ami_to_run_build='ami-fd4aa494' # 64 bit
   fi
   
   echo "AMIBUILDER: Running instance to perform AMI build: ami=$ami_to_run_build, instancetype=$instancetype ..."
@@ -102,18 +101,6 @@ upload_credentials() {
   ssh -i $keypair ubuntu@$host "sudo chown ubuntu /mnt/{cert,pk}*"
 }
 
-upgrade_ec2_tools() {
-  echo "AMIBUILDER: Upgrading EC2 tools on $host ..."
-  run \
-  'export DEBIAN_FRONTEND=noninteractive && \
-  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
-    sudo tee /etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list && \
-  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873 && \
-  sudo apt-get update && \
-  sudo -E apt-get dist-upgrade -y && \
-  sudo -E apt-get install -y ec2-api-tools'
-}
-
 remote_variable_setup() {
   remote_variable_setup='
   imagesource='$imagesource'
@@ -123,18 +110,18 @@ remote_variable_setup() {
 }
 
 variable_setup() {
-  codename=karmic
-  release=9.10
+  codename=lucid
+  release=10.04
   tag=server
   if [[ $(run 'uname -m') = "x86_64" ]] ; then
     arch=x86_64
     arch2=amd64
-    ebsopts="--kernel=aki-fd15f694 --ramdisk=ari-c515f6ac"
+    ebsopts="--kernel=aki-0b4aa462 --ramdisk=ari-c515f6ac"
     ebsopts="$ebsopts --block-device-mapping /dev/sdb=ephemeral0"
   else
     arch=i386
     arch2=i386
-    ebsopts="--kernel=aki-5f15f636 --ramdisk=ari-0915f660"
+    ebsopts="--kernel=aki-754aa41c --ramdisk=ari-0915f660"
     ebsopts="$ebsopts --block-device-mapping /dev/sda2=ephemeral0"
   fi
   imagesource=http://uec-images.ubuntu.com/releases/$codename/release/unpacked/ubuntu-$release-$tag-uec-$arch2.img.tar.gz
@@ -146,23 +133,20 @@ build_image() {
   echo "AMIBUILDER: Building base image on $host ..."
   run "wget --progress=dot:mega -O- $imagesource | sudo tar xzf - -C /mnt"
   run "sudo mkdir -p $imagedir"
-  run "sudo mount -o loop $image $imagedir"
+  run "sudo mount -o loop=/dev/loop4 $image $imagedir"
+  run "sudo resize2fs /dev/loop4 5G"
 
   # Allow network access from chroot environment
   run "sudo cp /etc/resolv.conf $imagedir/etc/"
   # Fix what I consider to be a bug in vmbuilder
   run "sudo rm -f $imagedir/etc/hostname"
   # Add multiverse
-  run "sudo perl -pi -e 's%(universe)$%\$1 multiverse%' $imagedir/etc/ec2-init/templates/sources.list.tmpl"
+  run "sudo perl -pi -e 's%(universe)$%\$1 multiverse%' $imagedir/etc/cloud/templates/sources.list.tmpl"
   # Add Alestic PPA for runurl package (handy in user-data scripts)
-  run "echo \"deb http://ppa.launchpad.net/alestic/ppa/ubuntu karmic main\" | \
+  run "echo \"deb http://ppa.launchpad.net/alestic/ppa/ubuntu lucid main\" | \
       sudo tee $imagedir/etc/apt/sources.list.d/alestic-ppa.list"
   run "sudo chroot $imagedir su - ubuntu -c \"touch /home/ubuntu/.bash_history\""
   run "sudo chroot $imagedir apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571"
-  # Add ubuntu-on-ec2/ec2-tools PPA for updated ec2-ami-tools
-  run "echo \"deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main\" | \
-    sudo tee $imagedir/etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list"
-  run "sudo chroot $imagedir apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873"
   # Upgrade the system and install packages
   run "sudo chroot $imagedir mount -t proc none /proc"
   run "sudo chroot $imagedir mount -t devpts none /dev/pts"
@@ -178,7 +162,7 @@ EOF
     sudo chroot $imagedir apt-get update &&
     sudo -E chroot $imagedir /usr/bin/env LANGUAGE=en_US.UTF-8 LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 apt-get install -y language-pack-en-base &&
     sudo -E chroot $imagedir apt-get dist-upgrade -y &&
-    sudo -E chroot $imagedir apt-get install -y runurl ec2-ami-tools &&
+    sudo -E chroot $imagedir apt-get install -y runurl cloud-utils &&
     sudo -E chroot $imagedir apt-get install -y build-essential zlib1g-dev libreadline5-dev"
 }
 
@@ -198,8 +182,8 @@ custom_setup() {
   echo "AMIBUILDER: Changing permissions on $custom_setup_script ..."
   run "sudo chroot $imagedir chmod a+x $custom_setup_script"
   echo "AMIBUILDER: Running $custom_setup_script ..."
-  echo "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
-  run "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && pwd && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
+  echo "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
+  run "sudo chroot $imagedir sudo -u ubuntu -i bash -c \"cd /home/ubuntu && $AMIBUILDER_CUSTOM_SETUP_VARS $custom_setup_script\""
 }
 
 copy_image_to_ami() {
@@ -290,9 +274,6 @@ build() {
   variable_setup
   if [[ ! $AMIBUILDER_NO_UPLOAD_CREDENTIALS = true ]] ; then
     upload_credentials
-  fi
-  if [[ ! $AMIBUILDER_NO_UPGRADE_EC2_TOOLS = true ]] ; then
-    upgrade_ec2_tools
   fi
   create_ebs_ami
   terminate_instance
