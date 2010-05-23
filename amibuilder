@@ -161,6 +161,7 @@ build_image() {
   exit 101
 EOF
 "
+  run "sudo su - -c \"echo 'export PATH=\\\$PATH:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' > $imagedir/etc/profile.d/path.sh\" "
   run "chmod 755 $imagedir/usr/sbin/policy-rc.d"
   run "export DEBIAN_FRONTEND=noninteractive &&
     sudo chroot $imagedir apt-get update &&
