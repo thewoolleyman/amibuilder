@@ -133,7 +133,11 @@ build_image() {
   echo "AMIBUILDER: Building base image on $host ..."
   run "wget --progress=dot:mega -O- $imagesource | sudo tar xzf - -C /mnt"
   run "sudo mkdir -p $imagedir"
+  # Resize image so we have enough space to install in chroot
+  # Not sure if one or both of uec-resize-image and resize2fs are needed
+  run "sudo uec-resize-image $image 5G"
   run "sudo mount -o loop=/dev/loop4 $image $imagedir"
+  # Sometimes this is needed even though image was resized before mount with uec-resize-image?
   run "sudo resize2fs /dev/loop4 5G"
 
   # Allow network access from chroot environment
