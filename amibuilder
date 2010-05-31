@@ -65,6 +65,19 @@ run_instance() {
   instanceid=$instanceid
 }
 
+upgrade_ec2_tools() {
+  # TODO: When will there be a lucid release?  How do you get tools like ec2-attach-volume on lucid?
+  echo "AMIBUILDER: Upgrading EC2 tools on $host ..."
+  run \
+  'export DEBIAN_FRONTEND=noninteractive && \
+  echo "deb http://ppa.launchpad.net/ubuntu-on-ec2/ec2-tools/ubuntu karmic main" | \
+    sudo tee /etc/apt/sources.list.d/ubuntu-on-ec2-ec2-tools.list && \
+  sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9EE6D873 && \
+  sudo apt-get update && \
+  sudo -E apt-get dist-upgrade -y && \
+  sudo -E apt-get install -y ec2-api-tools'
+}
+
 get_host() {
   echo "AMIBUILDER: Finding hostname for $instanceid ..."
   while host=$(ec2-describe-instances \
@@ -279,6 +292,9 @@ build() {
   variable_setup
   if [[ ! $AMIBUILDER_NO_UPLOAD_CREDENTIALS = true ]] ; then
     upload_credentials
+  fi
+  if [[ ! $AMIBUILDER_NO_UPGRADE_EC2_TOOLS = true ]] ; then
+    upgrade_ec2_tools
   fi
   create_ebs_ami
   terminate_instance
