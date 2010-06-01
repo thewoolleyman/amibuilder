@@ -115,11 +115,17 @@ upload_credentials() {
 }
 
 remote_variable_setup() {
-  remote_variable_setup='
+  remote_variable_setup="
+  codename='$codename'
+  release='$release'
+  tag='$tag'
+  arch='$arch'
+  arch2='$arch2'
+  ebsopts='$ebsopts'
   imagesource='$imagesource'
   image='$image'
   imagedir='$imagedir'
-  '
+  "
 }
 
 variable_setup() {
@@ -139,7 +145,18 @@ variable_setup() {
   fi
   imagesource=http://uec-images.ubuntu.com/releases/$codename/release/unpacked/ubuntu-$release-$tag-uec-$arch2.img.tar.gz
   image=/mnt/$codename-$tag-uec-$arch2.img
-  imagedir=/mnt/$codename-uec-$arch2  
+  imagedir=/mnt/$codename-uec-$arch2
+  echo "Variable Setup:
+  codename=$codename
+  release=$release
+  tag=$tag
+  arch=$arch
+  arch2=$arch2
+  ebsopts=$ebsopts
+  imagesource=$imagesource
+  image=$image
+  imagedir=$imagedir
+  "
 }
 
 build_image() {
@@ -206,8 +223,8 @@ custom_setup() {
 
 copy_image_to_ami() {
   echo "AMIBUILDER: Building and registering AMI on  $host ..."
-  run "sudo chroot $imagedir umount /proc"
-  run "sudo chroot $imagedir umount /dev/pts"
+  run_ignoring_error "sudo chroot $imagedir umount /proc"
+  run_ignoring_error "sudo chroot $imagedir umount /dev/pts"
   run "sudo rm -f $imagedir/usr/sbin/policy-rc.d"
 
   run $remote_variable_setup'
@@ -273,6 +290,7 @@ run() {
   for arg; do
     arg_array[i++]=$(printf %q "$arg")
   done
+  echo "ssh -i $keypair ubuntu@$host \"$@\""
   ssh -i $keypair ubuntu@$host "$@"
 }
 
